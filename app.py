@@ -298,7 +298,8 @@ selected_year = st.selectbox(
     "Choose Year for Analysis:",
     options=available_years,
     index=len(available_years)-5 if len(available_years) >= 5 else 0,
-    help="Select a year to see Lebanon's debt trends and economic context"
+    help="Select a year to see Lebanon's debt trends and economic context",
+    key="year_selector"
 )
 
 year_data = df[df['refPeriod'] == selected_year]
@@ -321,6 +322,32 @@ debt_composition_indicators = [
 
 composition_data = year_data[year_data['Indicator Name'].isin(debt_composition_indicators)]
 
+# Only show Key Insights section (remove the first pie chart)
+st.markdown("#### 💡 Key Insights")
+if not composition_data.empty:
+    total_debt = composition_data['Value_Billions'].sum()
+    largest_component = composition_data.loc[composition_data['Value_Billions'].idxmax()]
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown(f"""
+        <div class="metric-container">
+            <h4>Total Debt</h4>
+            <h2>${total_debt:.1f}B</h2>
+        </div>
+        """, unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown(f"""
+        <div class="insight-box">
+        <strong>Largest Component:</strong><br>
+        {largest_component['Indicator Name']}<br>
+        <strong>${largest_component['Value_Billions']:.1f}B</strong>
+        ({largest_component['Value_Billions']/total_debt*100:.1f}% of total)
+        </div>
+        """, unsafe_allow_html=True)
+
 col1, col2 = st.columns([2, 1])
 
 with col1:
@@ -341,7 +368,7 @@ with col1:
         )
         
         # Use plotly_events to make the pie chart clickable
-        clicked_data = plotly_events(fig2, click_event=True)
+        clicked_data = plotly_events(fig2, click_event=True, key="pie_chart_events")
 
         # If a slice is clicked, store its name in session state
         if clicked_data:
@@ -366,24 +393,41 @@ with col1:
         st.warning("No debt composition data available for the selected year.")
 
 with col2:
-    st.markdown("#### 💡 Key Insights")
     if not composition_data.empty:
-        total_debt = composition_data['Value_Billions'].sum()
-        largest_component = composition_data.loc[composition_data['Value_Billions'].idxmax()]
+        st.markdown("#### 📊 Additional Analysis")
         
-        st.markdown(f"""
-        <div class="metric-container">
-            <h4>Total Debt</h4>
-            <h2>${total_debt:.1f}B</h2>
-        </div>
-        """, unsafe_allow_html=True)
+        # Calculate public vs private debt
+        public_debt_categories = [
+            "Public and publicly guaranteed debt (US$)",
+            "Multilateral debt (US$)",
+            "World Bank debt outstanding (US$)",
+            "Public commercial bank debt (US$)",
+            "Other public bank debt (US$)"
+        ]
+        
+        private_debt_categories = [
+            "Private debt (US$)",
+            "Private sector debt, other (US$)",
+            "Private non-guaranteed commercial debt (US$)"
+        ]
+        
+        public_debt = composition_data[
+            composition_data['Indicator Name'].isin(public_debt_categories)
+        ]['Value_Billions'].sum()
+        
+        private_debt = composition_data[
+            composition_data['Indicator Name'].isin(private_debt_categories)
+        ]['Value_Billions'].sum()
+        
+        public_pct = (public_debt / total_debt * 100) if total_debt > 0 else 0
+        private_pct = (private_debt / total_debt * 100) if total_debt > 0 else 0
         
         st.markdown(f"""
         <div class="insight-box">
-        <strong>Largest Component:</strong><br>
-        {largest_component['Indicator Name']}<br>
-        <strong>${largest_component['Value_Billions']:.1f}B</strong>
-        ({largest_component['Value_Billions']/total_debt*100:.1f}% of total)
+        <strong>🏛️ Public Sector Debt:</strong><br>
+        ${public_debt:.1f}B ({public_pct:.1f}%)<br><br>
+        <strong>🏢 Private Sector Debt:</strong><br>
+        ${private_debt:.1f}B ({private_pct:.1f}%)
         </div>
         """, unsafe_allow_html=True)
 
