@@ -306,6 +306,7 @@ year_data = df[df['refPeriod'] == selected_year]
 # -------------------- VISUALIZATION 2 (now the interactive pie chart): LEBANON'S DEBT EVOLUTION --------------------
 st.markdown("### 📈 Lebanon's External Debt Evolution Over Time")
 
+# Define key debt indicators for composition
 debt_composition_indicators = [
     "External debt stocks, total (US$)",
     "Multilateral debt (US$)",
@@ -320,62 +321,71 @@ debt_composition_indicators = [
 
 composition_data = year_data[year_data['Indicator Name'].isin(debt_composition_indicators)]
 
-if not composition_data.empty:
-    # Get total of ALL indicators for the selected year (for proper percentage calculation)
-    all_indicators_total = year_data['Value_Billions'].sum()
-    
-    # Calculate proper percentages based on all indicators
-    composition_data_with_pct = composition_data.copy()
-    composition_data_with_pct['True_Percentage'] = (composition_data_with_pct['Value_Billions'] / all_indicators_total) * 100
-    
-    fig2 = px.pie(
-        composition_data_with_pct, 
-        values="Value_Billions", 
-        names="Indicator Name",
-        title=f"Debt Composition in {selected_year} (% of All Indicators)",
-        color_discrete_sequence=px.colors.qualitative.Set3,
-        hole=0.4
-    )
-    
-    # Custom text to show both value and true percentage relative to all indicators
-    fig2.update_traces(
-        textposition='inside', 
-        textinfo='percent+label',
-        hovertemplate='<b>%{label}</b><br>Value: $%{value:.1f}B<br>% of All Indicators: %{customdata:.2f}%<extra></extra>',
-        customdata=composition_data_with_pct['True_Percentage']
-    )
-    
-    fig2.update_layout(
-        font=dict(size=12),
-        showlegend=True,
-        height=500
-    )
-    
-    # Use plotly_events to make the pie chart clickable
-    clicked_data = plotly_events(fig2, click_event=True)
+col1, col2 = st.columns([2, 1])
 
-    # If a slice is clicked, store its name in session state
-    if clicked_data:
-        clicked_slice_index = clicked_data[0]['pointIndex']
-        clicked_name = composition_data['Indicator Name'].iloc[clicked_slice_index]
-        st.session_state.clicked_pie_slice = clicked_name
-
-    # Display information about the clicked slice
-    if st.session_state.clicked_pie_slice:
-        st.markdown(f"#### **You clicked on:** {st.session_state.clicked_pie_slice}")
-        selected_component_data = composition_data_with_pct[composition_data_with_pct['Indicator Name'] == st.session_state.clicked_pie_slice]
+with col1:
+    if not composition_data.empty:
+        fig2 = px.pie(
+            composition_data,
+            values="Value_Billions",
+            names="Indicator Name",
+            title=f"Debt Composition in {selected_year} (Billions USD)",
+            color_discrete_sequence=px.colors.qualitative.Set3,
+            hole=0.4
+        )
+        fig2.update_traces(textposition='inside', textinfo='percent+label')
+        fig2.update_layout(
+            font=dict(size=12),
+            showlegend=True,
+            height=500
+        )
         
-        if not selected_component_data.empty:
-            value = selected_component_data['Value_Billions'].iloc[0]
-            true_pct = selected_component_data['True_Percentage'].iloc[0]
-            st.write(f"**Value:** ${value:.2f} Billion")
-            st.write(f"**Percentage of All Indicators:** {true_pct:.2f}%")
-            
-    else:
-        st.markdown("<p style='text-align: center;'>Click on a pie slice to see details!</p>", unsafe_allow_html=True)
+        # Use plotly_events to make the pie chart clickable
+        clicked_data = plotly_events(fig2, click_event=True)
 
-else:
-    st.warning("No debt composition data available for the selected year.")
+        # If a slice is clicked, store its name in session state
+        if clicked_data:
+            clicked_slice_index = clicked_data[0]['pointIndex']
+            clicked_name = composition_data['Indicator Name'].iloc[clicked_slice_index]
+            st.session_state.clicked_pie_slice = clicked_name
+            
+        st.plotly_chart(fig2, use_container_width=True)
+        
+        # Display information about the clicked slice
+        if st.session_state.clicked_pie_slice:
+            st.markdown(f"#### **You clicked on:** {st.session_state.clicked_pie_slice}")
+            selected_component_data = composition_data[composition_data['Indicator Name'] == st.session_state.clicked_pie_slice]
+            
+            if not selected_component_data.empty:
+                value = selected_component_data['Value_Billions'].iloc[0]
+                st.write(f"**Value:** ${value:.2f} Billion")
+                
+        else:
+            st.markdown("<p style='text-align: center;'>Click on a pie slice to see details!</p>", unsafe_allow_html=True)
+    else:
+        st.warning("No debt composition data available for the selected year.")
+
+with col2:
+    st.markdown("#### 💡 Key Insights")
+    if not composition_data.empty:
+        total_debt = composition_data['Value_Billions'].sum()
+        largest_component = composition_data.loc[composition_data['Value_Billions'].idxmax()]
+        
+        st.markdown(f"""
+        <div class="metric-container">
+            <h4>Total Debt</h4>
+            <h2>${total_debt:.1f}B</h2>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        st.markdown(f"""
+        <div class="insight-box">
+        <strong>Largest Component:</strong><br>
+        {largest_component['Indicator Name']}<br>
+        <strong>${largest_component['Value_Billions']:.1f}B</strong>
+        ({largest_component['Value_Billions']/total_debt*100:.1f}% of total)
+        </div>
+        """, unsafe_allow_html=True)
 
 # -------------------- CONTEXTUAL INFORMATION --------------------
 st.markdown("---")
