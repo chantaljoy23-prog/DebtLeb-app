@@ -175,7 +175,6 @@ else:
     year_range = periods[selected_period]
 
 # -------------------- VISUALIZATION 1: DEBT EVOLUTION IN SELECTED LEBANON PERIOD --------------------
-st.markdown("### 📈 Lebanon's Debt Pattern During Selected Period")
 
 key_debt_indicators = ["External debt stocks, total (US$)", "Long-term external debt (US$)", "Short-term debt (US$)"]
 period_data = df[
