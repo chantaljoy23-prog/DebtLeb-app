@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from streamlit_plotly_events import plotly_events
 
 # -------------------- PAGE CONFIG --------------------
 st.set_page_config(layout="wide", page_title="External Debt Interactive Dashboard", page_icon="💰")
@@ -127,10 +126,6 @@ df = load_data('ec4c40221073bbdf6f75b6c6127249c3_20240905_173222.csv')
 if df.empty:
     st.error("⚠️ Could not load the data file. Please ensure the CSV file is in the correct location.")
     st.stop()
-
-# Initialize session state for storing clicked data
-if 'clicked_pie_slice' not in st.session_state:
-    st.session_state.clicked_pie_slice = None
 
 # -------------------- DASHBOARD HEADER --------------------
 st.markdown('<h1 class="main-header">💰 External Debt Interactive Dashboard</h1>', unsafe_allow_html=True)
@@ -286,30 +281,23 @@ if not period_data.empty:
         </div>
         """, unsafe_allow_html=True)
 
-# -------------------- LEBANON'S EXTERNAL DEBT EVOLUTION OVER TIME --------------------
+# -------------------- YEAR SELECTOR FOR SECOND VISUALIZATION --------------------
 st.markdown("---")
 st.markdown("### 📊 **Lebanon's External Debt Evolution Over Time**")
 st.markdown("*Select a specific year to analyze Lebanon's debt composition*")
-st.markdown("*<small>💡 **Click on a pie chart slice below** to view details about that specific debt component.</small>*", unsafe_allow_html=True)
 
-# Reset clicked slice when year changes
-if 'previous_selected_year' not in st.session_state:
-    st.session_state.previous_selected_year = None
+# Filter available years to 1960-2022
+available_years = [int(year) for year in sorted(df['refPeriod'].unique()) if 1960 <= year <= 2022]
 
-available_years = [year for year in sorted(df['refPeriod'].unique()) if 1960 <= year <= 2022]
-selected_year = st.selectbox(
+selected_year_for_analysis = st.selectbox(
     "Choose Year for Analysis:",
     options=available_years,
     index=len(available_years)-5 if len(available_years) >= 5 else len(available_years)-1,
     help="Select a year between 1960-2022 to see Lebanon's debt composition"
 )
 
-# Reset clicked slice when year changes
-if st.session_state.previous_selected_year != selected_year:
-    st.session_state.clicked_pie_slice = None
-    st.session_state.previous_selected_year = selected_year
-
-year_data = df[df['refPeriod'] == selected_year]
+# Filter data for selected year
+year_data_for_analysis = df[df['refPeriod'] == selected_year_for_analysis]
 
 # Define key debt indicators for composition
 debt_composition_indicators = [
@@ -324,23 +312,24 @@ debt_composition_indicators = [
     "Private non-guaranteed commercial debt (US$)"
 ]
 
-composition_data = year_data[year_data['Indicator Name'].isin(debt_composition_indicators)]
+composition_data_for_analysis = year_data_for_analysis[year_data_for_analysis['Indicator Name'].isin(debt_composition_indicators)]
 
 # Filter out zero or null values
-composition_data = composition_data[
-    (composition_data['Value_Billions'] > 0) & 
-    (composition_data['Value_Billions'].notna())
+composition_data_for_analysis = composition_data_for_analysis[
+    (composition_data_for_analysis['Value_Billions'] > 0) & 
+    (composition_data_for_analysis['Value_Billions'].notna())
 ]
 
+# -------------------- VISUALIZATION 2: DEBT COMPOSITION PIE CHART --------------------
 col1, col2 = st.columns([2, 1])
 
 with col1:
-    if not composition_data.empty:
+    if not composition_data_for_analysis.empty:
         fig2 = px.pie(
-            composition_data,
+            composition_data_for_analysis,
             values="Value_Billions",
             names="Indicator Name",
-            title=f"Debt Composition in {selected_year} (Billions USD)",
+            title=f"Debt Composition in {selected_year_for_analysis} (Billions USD)",
             color_discrete_sequence=px.colors.qualitative.Set3,
             hole=0.4
         )
@@ -351,36 +340,21 @@ with col1:
             height=500
         )
         
-        # Use plotly_events to make the pie chart clickable
-        clicked_data = plotly_events(fig2, click_event=True)
-
-        # If a slice is clicked, store its name in session state
-        if clicked_data:
-            clicked_slice_index = clicked_data[0]['pointIndex']
-            clicked_name = composition_data.iloc[clicked_slice_index]['Indicator Name']
-            st.session_state.clicked_pie_slice = clicked_name
-            
         st.plotly_chart(fig2, use_container_width=True)
         
-        # Display information about the clicked slice
-        if st.session_state.clicked_pie_slice:
-            st.markdown(f"#### **You clicked on:** {st.session_state.clicked_pie_slice}")
-            selected_component_data = composition_data[composition_data['Indicator Name'] == st.session_state.clicked_pie_slice]
-            
-            if not selected_component_data.empty:
-                value = selected_component_data['Value_Billions'].iloc[0]
-                st.write(f"**Value:** ${value:.2f} Billion")
-                
-        else:
-            st.markdown("<p style='text-align: center;'>Click on a pie slice to see details!</p>", unsafe_allow_html=True)
+        st.markdown(f"""
+        **📊 Analysis of Lebanon's Debt Composition ({selected_year_for_analysis}):**
+        This pie chart clearly demonstrates that Lebanon's external debt crisis is primarily a **public sector responsibility**, not a private sector or banking sector issue. The visualization shows that Public and Publicly Guaranteed Debt, along with Multilateral Debt (including World Bank debt), constitute the overwhelming majority of Lebanon's external obligations. Private debt and private non-guaranteed commercial debt represent only a small fraction of total external debt. This pattern indicates that Lebanon's debt problems stem from government fiscal policies, public spending decisions, and sovereign borrowing rather than private sector over-borrowing or banking sector excesses. The dominance of public debt highlights the need for fiscal reform and public sector restructuring as key solutions to Lebanon's debt crisis.
+        """)
+        
     else:
-        st.warning(f"No debt composition data available for {selected_year}. Try selecting a different year.")
+        st.warning(f"No debt composition data available for {selected_year_for_analysis}. Try selecting a different year.")
 
 with col2:
     st.markdown("#### 💡 Key Insights")
-    if not composition_data.empty:
-        total_debt = composition_data['Value_Billions'].sum()
-        largest_component = composition_data.loc[composition_data['Value_Billions'].idxmax()]
+    if not composition_data_for_analysis.empty:
+        total_debt = composition_data_for_analysis['Value_Billions'].sum()
+        largest_component = composition_data_for_analysis.loc[composition_data_for_analysis['Value_Billions'].idxmax()]
         
         st.markdown(f"""
         <div class="metric-container">
@@ -413,12 +387,12 @@ with col2:
             "Private non-guaranteed commercial debt (US$)"
         ]
         
-        public_debt = composition_data[
-            composition_data['Indicator Name'].isin(public_debt_categories)
+        public_debt = composition_data_for_analysis[
+            composition_data_for_analysis['Indicator Name'].isin(public_debt_categories)
         ]['Value_Billions'].sum()
         
-        private_debt = composition_data[
-            composition_data['Indicator Name'].isin(private_debt_categories)
+        private_debt = composition_data_for_analysis[
+            composition_data_for_analysis['Indicator Name'].isin(private_debt_categories)
         ]['Value_Billions'].sum()
         
         public_pct = (public_debt / total_debt * 100) if total_debt > 0 else 0
@@ -434,10 +408,17 @@ with col2:
         """, unsafe_allow_html=True)
         
         # Show number of available indicators
-        num_indicators = len(composition_data)
-        st.markdown(f"📊 **Available indicators in {selected_year}:** {num_indicators} out of 9")
+        num_indicators = len(composition_data_for_analysis)
+        st.markdown(f"📊 **Available indicators in {selected_year_for_analysis}:** {num_indicators} out of 9")
+        
+        st.markdown(f"""
+        <div class="insight-box">
+        <strong>🎯 Key Finding:</strong><br>
+        Lebanon's external debt is primarily a <strong>public sector issue</strong> with {public_pct:.1f}% government responsibility vs only {private_pct:.1f}% private sector responsibility.
+        </div>
+        """, unsafe_allow_html=True)
     else:
-        st.markdown(f"No debt data available for {selected_year}")
+        st.markdown(f"No debt data available for {selected_year_for_analysis}")
 
 # -------------------- CONTEXTUAL INFORMATION --------------------
 st.markdown("---")
