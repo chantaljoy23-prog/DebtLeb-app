@@ -90,7 +90,7 @@ Use the interactive features below to explore Lebanon's debt evolution across di
 """, unsafe_allow_html=True)
 
 # -------------------- INTERACTIVE FEATURE 1: YEAR SELECTOR --------------------
-st.markdown("### 🎯 **Interactive Feature 1: Year Selection**")
+st.markdown("### 🎯 **Visual 1: Line Chart**")
 st.markdown("*Select a specific year to analyze Lebanon's debt evolution over time*")
 
 # Get available years
@@ -164,7 +164,7 @@ with col2:
 
 # -------------------- INTERACTIVE FEATURE 2: TIME PERIOD FOCUS --------------------
 st.markdown("---")
-st.markdown("### 🎯 **Interactive Feature 2: Time Period Analysis**")
+st.markdown("### 🎯 **Visual 2: Pie Chart**")
 st.markdown("*Focus on specific time periods to analyze debt patterns during different economic phases*")
 
 # Get available years for range selection
