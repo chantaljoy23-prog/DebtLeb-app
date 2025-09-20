@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import plotly.express as px
@@ -145,8 +144,8 @@ Use the interactive features below to explore Lebanon's debt evolution across di
 </div>
 """, unsafe_allow_html=True)
 
-# -------------------- INTERACTIVE FEATURE 1: TIME PERIOD FOCUS --------------------
-st.markdown("### 🎯 **Visual 1: Line Chart**")
+# -------------------- LEBANON'S DEBT PATTERN DURING SELECTED PERIOD --------------------
+st.markdown("### 📈 **Lebanon's Debt Pattern During Selected Period**")
 st.markdown("*Focus on specific time periods to analyze debt patterns during different economic phases*")
 
 # Get available years for range selection
@@ -180,7 +179,7 @@ if selected_period == "🔍 Custom Period":
 else:
     year_range = periods[selected_period]
 
-# -------------------- VISUALIZATION 1 (now the line chart): DEBT EVOLUTION IN SELECTED LEBANON PERIOD --------------------
+# -------------------- VISUALIZATION 1: DEBT EVOLUTION IN SELECTED LEBANON PERIOD --------------------
 st.markdown("### 📈 Lebanon's Debt Pattern During Selected Period")
 
 key_debt_indicators = ["External debt stocks, total (US$)", "Long-term external debt (US$)", "Short-term debt (US$)"]
@@ -287,33 +286,30 @@ if not period_data.empty:
         </div>
         """, unsafe_allow_html=True)
 
-# -------------------- INTERACTIVE FEATURE 2: YEAR SELECTOR --------------------
+# -------------------- LEBANON'S EXTERNAL DEBT EVOLUTION OVER TIME --------------------
 st.markdown("---")
-st.markdown("### 🎯 **Visual 2: Pie Chart**")
-st.markdown("*Select a specific year to analyze Lebanon's debt evolution over time*")
+st.markdown("### 📊 **Lebanon's External Debt Evolution Over Time**")
+st.markdown("*Select a specific year to analyze Lebanon's debt composition*")
 st.markdown("*<small>💡 **Click on a pie chart slice below** to view details about that specific debt component.</small>*", unsafe_allow_html=True)
 
-# Clear any previous selections when changing years
-if 'previous_year' not in st.session_state:
-    st.session_state.previous_year = None
+# Reset clicked slice when year changes
+if 'previous_selected_year' not in st.session_state:
+    st.session_state.previous_selected_year = None
 
-available_years = sorted(df['refPeriod'].unique())
+available_years = [year for year in sorted(df['refPeriod'].unique()) if 1960 <= year <= 2022]
 selected_year = st.selectbox(
     "Choose Year for Analysis:",
     options=available_years,
-    index=len(available_years)-5 if len(available_years) >= 5 else 0,
-    help="Select a year to see Lebanon's debt trends and economic context"
+    index=len(available_years)-5 if len(available_years) >= 5 else len(available_years)-1,
+    help="Select a year between 1960-2022 to see Lebanon's debt composition"
 )
 
 # Reset clicked slice when year changes
-if st.session_state.previous_year != selected_year:
+if st.session_state.previous_selected_year != selected_year:
     st.session_state.clicked_pie_slice = None
-    st.session_state.previous_year = selected_year
+    st.session_state.previous_selected_year = selected_year
 
 year_data = df[df['refPeriod'] == selected_year]
-
-# -------------------- VISUALIZATION 2: LEBANON'S DEBT COMPOSITION --------------------
-st.markdown("### 📈 Lebanon's External Debt Evolution Over Time")
 
 # Define key debt indicators for composition
 debt_composition_indicators = [
@@ -329,6 +325,12 @@ debt_composition_indicators = [
 ]
 
 composition_data = year_data[year_data['Indicator Name'].isin(debt_composition_indicators)]
+
+# Filter out zero or null values
+composition_data = composition_data[
+    (composition_data['Value_Billions'] > 0) & 
+    (composition_data['Value_Billions'].notna())
+]
 
 col1, col2 = st.columns([2, 1])
 
@@ -355,7 +357,7 @@ with col1:
         # If a slice is clicked, store its name in session state
         if clicked_data:
             clicked_slice_index = clicked_data[0]['pointIndex']
-            clicked_name = composition_data['Indicator Name'].iloc[clicked_slice_index]
+            clicked_name = composition_data.iloc[clicked_slice_index]['Indicator Name']
             st.session_state.clicked_pie_slice = clicked_name
             
         st.plotly_chart(fig2, use_container_width=True)
@@ -372,7 +374,7 @@ with col1:
         else:
             st.markdown("<p style='text-align: center;'>Click on a pie slice to see details!</p>", unsafe_allow_html=True)
     else:
-        st.warning("No debt composition data available for the selected year.")
+        st.warning(f"No debt composition data available for {selected_year}. Try selecting a different year.")
 
 with col2:
     st.markdown("#### 💡 Key Insights")
@@ -430,6 +432,12 @@ with col2:
         ${private_debt:.1f}B ({private_pct:.1f}%)
         </div>
         """, unsafe_allow_html=True)
+        
+        # Show number of available indicators
+        num_indicators = len(composition_data)
+        st.markdown(f"📊 **Available indicators in {selected_year}:** {num_indicators} out of 9")
+    else:
+        st.markdown(f"No debt data available for {selected_year}")
 
 # -------------------- CONTEXTUAL INFORMATION --------------------
 st.markdown("---")
